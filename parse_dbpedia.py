@@ -30,9 +30,10 @@ def parse_ttl_line(line):
     return subject, predicate, obj
 
 
-def get_entity_types(ontology, filename='./data/dbpedia/instance_types_en.ttl'):
+def get_entity_docs(filename='data/dbpedia/instance_types_en.ttl'):
     documents = {}
-    with open(filename, 'r', encoding='ISO-8859-1') as f:  #, 'rb') as f:
+    with open(os.path.join(os.getcwd(), filename), 'r',
+              encoding='ISO-8859-1') as f:  #, 'rb') as f:
         for line in f:
             if line.startswith('#'):
                 continue
@@ -45,23 +46,35 @@ def get_entity_types(ontology, filename='./data/dbpedia/instance_types_en.ttl'):
             if obj == 'owl#Thing':
                 continue
 
-            subj = resolve_uri(s)
+            subj = s  #resolve_uri(s)
             if subj:
                 if subj in documents:
-                    for ancestor in get_ancestors(ontology, obj):
-                        if ancestor not in documents[subj]['types']:
-                            documents[subj]['types'] += ' ' + ancestor
+                    documents[subj]['types'] += ' ' + obj
                 else:
-                    documents[subj] = {
-                        'body': subj,
-                        'types': ' '.join(set(get_ancestors(ontology, obj)))
-                    }
+                    documents[subj] = {'body': resolve_uri(s), 'types': obj}
 
-    print('Num processed docs: ', len(documents))
+    print('Num entities with types: ', len(documents))
     return documents
 
 
-def get_type_from_entities(entity_documents):
+def get_entity_data(filename='data/dbpedia/long_abstracts_en.ttl'):
+    documents = {}
+    with open(os.path.join(os.getcwd(), filename), 'r',
+              encoding='ISO-8859-1') as f:
+        for line in f:
+            if line.startswith('#'):
+                continue
+
+            s, p, o = parse_ttl_line(line)
+            subj = s  #resolve_uri(s)
+            if subj:
+                documents[subj] = o
+
+    print('Num entities with data: ', len(documents))
+    return documents
+
+
+def get_type_docs(entity_documents):
     documents = {}
     for entity, body in entity_documents.items():
         for t in body['types'].split():
@@ -109,8 +122,9 @@ def get_ancestors(tree, entity_type):
     return ancestors
 
 
+#%%
 if __name__ == "__main__":
     ontology = get_ontology_tree()
-    doc_entity = get_entity_types(ontology)
-    doc_type = get_type_from_entities(doc_entity)
+    doc_entity = get_entity_docs()
+    # doc_type = get_type_docs(doc_entity)
 # %%
