@@ -76,13 +76,15 @@ def get_entity_data(filename='data/dbpedia/long_abstracts_en.ttl'):
 
 def get_type_docs(entity_documents):
     documents = {}
-    for entity, body in entity_documents.items():
+    for i, (entity, body) in enumerate(entity_documents.items()):
         for t in body['types'].split():
             if t in documents:
                 documents[t]['entities'] += ' ' + entity
             else:
                 documents[t] = {'body': t, 'entities': entity}
 
+        if i % 50000 == 0:
+            print('Processed {} entities'.format(i))
     print('Num types: ', len(documents))
     return documents
 
@@ -126,5 +128,5 @@ def get_ancestors(tree, entity_type):
 if __name__ == "__main__":
     ontology = get_ontology_tree()
     doc_entity = get_entity_docs()
-    # doc_type = get_type_docs(doc_entity)
+    doc_type = get_type_docs(doc_entity)
 # %%
