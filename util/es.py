@@ -1,5 +1,6 @@
 #%%
 import os
+from collections import defaultdict
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 
@@ -7,7 +8,7 @@ if os.getcwd().endswith('util'):
     os.chdir('../')
 
 # fix this
-from util.parse_dbpedia import get_TC_documents, get_EC_documents
+from util.parse_dbpedia import get_TC_documents, get_EC_documents, get_type_weights, get_all_instance_types
 from util.io import load_dict_from_json, save_dict_to_json
 
 
@@ -110,7 +111,10 @@ class ES:
             query_terms.append(t['token'])
         return query_terms
 
-    def baseline_retrieval(self, queries, k=100):
+    def get_queries_results(self, queries, k=100):
+        pass
+
+    def baseline_EC_retrieval(self, queries, k=100):
         """Performs baseline retrival on index.
         """
         ids, body = [], []
@@ -134,10 +138,43 @@ class ES:
                 'size': k
             })
         res = self.es.msearch(index=self._index_name, body=body)['responses']
+
         return {
             qid: [(doc['_id'], doc['_score']) for doc in hits['hits']['hits']
                  ] for qid, hits in zip(ids, res)
         }
+
+    def baseline_TC_retrieval(self, queries, k=2):
+        """Performs baseline retrival on index.
+        """
+        results = {}
+        for query in queries:
+            if query['category'] != 'resource':
+                continue
+
+            q = self.analyze_query(query['question'])
+            if not q:
+                continue
+
+            body = []
+            for term in q:
+                body.append({})
+                body.append({
+                    'query': {
+                        'match': {
+                            'body': term
+                        }
+                    },
+                    '_source': False,
+                    'size': k
+                })
+            res = self.es.msearch(index=self._index_name,
+                                  body=body)['responses']
+            results[query['id']] = [[(doc['_id'], doc['_score'])
+                                     for doc in hits['hits']['hits']]
+                                    for hits in res]
+
+        return results
 
     def load_baseline_results(self, dataset='train', force=False):
         fname = f'top100_{self.model}_{self.similarity}_{dataset}'
@@ -152,9 +189,32 @@ class ES:
             print('Cannot find the dataset.')
             return None
 
-        res = self.baseline_retrieval(queries)
+        res = getattr(self, f'baseline_{self.model}_retrieval')(queries)
         save_dict_to_json(res, fname)
         return res
+
+    def get_baseline_EC_scores(self, results, k=100):
+        type_weights = get_type_weights()
+        entity_types = get_all_instance_types(True)
+        system_output = {}
+        for qid, res in results.items():
+            scores = defaultdict(int)
+            for entity, score in res[:k]:
+                for t in entity_types[entity]:
+                    scores['dbo:' + t] += score / type_weights[t]
+
+            system_output[qid] = sorted(scores.items(),
+                                        key=lambda x: x[1],
+                                        reverse=True)
+        return system_output
+
+    def get_baseline_TC_scores(self, results, k=100):
+        return results
+
+    def generate_baseline_scores(self, dataset='train', k=100, force=False):
+        raw_results = self.load_baseline_results(dataset, force)
+        return getattr(self, f'get_baseline_{self.model}_scores')(raw_results,
+                                                                  k)
 
 
 if __name__ == "__main__":
