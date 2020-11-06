@@ -130,6 +130,7 @@ dmypy.json
 
 # data folder
 data/dbpedia/
+data/document_*
 
 # 
 smart_dataset/

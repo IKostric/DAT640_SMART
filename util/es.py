@@ -25,7 +25,7 @@ class ES:
         if similarity == 'LM':
             self._settings['settings'] = self.get_LM_settings()
 
-        self.es = Elasticsearch(timeout=60)
+        self.es = Elasticsearch(timeout=120)
         print(self.es.info())
 
     def get_index(self):
@@ -111,9 +111,6 @@ class ES:
             query_terms.append(t['token'])
         return query_terms
 
-    def get_queries_results(self, queries, k=100):
-        pass
-
     def baseline_EC_retrieval(self, queries, k=100):
         """Performs baseline retrival on index.
         """
@@ -144,7 +141,7 @@ class ES:
                  ] for qid, hits in zip(ids, res)
         }
 
-    def baseline_TC_retrieval(self, queries, k=2):
+    def baseline_TC_retrieval(self, queries, k=100):
         """Performs baseline retrival on index.
         """
         results = {}
@@ -165,14 +162,19 @@ class ES:
                             'body': term
                         }
                     },
-                    '_source': False,
-                    'size': k
+                    '_source': False
                 })
             res = self.es.msearch(index=self._index_name,
                                   body=body)['responses']
-            results[query['id']] = [[(doc['_id'], doc['_score'])
-                                     for doc in hits['hits']['hits']]
-                                    for hits in res]
+
+            scores = defaultdict(int)
+            for hits in res:
+                for doc in hits['hits']['hits']:
+                    scores[doc['_id']] += doc['_score']
+
+            results[query['id']] = sorted(scores.items(),
+                                          key=lambda x: x[1],
+                                          reverse=True)[:k]
 
         return results
 
@@ -208,7 +210,7 @@ class ES:
                                         reverse=True)
         return system_output
 
-    def get_baseline_TC_scores(self, results, k=100):
+    def get_baseline_TC_scores(self, results, k=None):
         return results
 
     def generate_baseline_scores(self, dataset='train', k=100, force=False):
