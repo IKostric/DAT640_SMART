@@ -12,10 +12,12 @@ def remove_non_existing_types(filename, type_hierarchy):
     i = 0
     for q in s:
         if q['category'] == 'resource':
+            before = len(q['type'])
             q['type'] = [t for t in q['type'] if t in type_hierarchy]
-            i += 1
+            if len(q['type']) != before:
+                i += 1
 
-    print(f'Removed "dbo:Location" from {i} instances.')
+    print(f'Removed extra types from {i} instances.')
     save_dict_to_json(s, filename)
 
 

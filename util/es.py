@@ -26,7 +26,7 @@ class ES:
             self._settings['settings'] = self.get_LM_settings()
 
         self.es = Elasticsearch(timeout=120)
-        print(self.es.info())
+        #print(self.es.info())
 
     def get_index(self):
         return self._index_name
@@ -64,21 +64,32 @@ class ES:
             if i % num_docs == 0:
                 print('{}% done'.format((i // num_docs) * 10))
 
-    def reindex(self, doc_body=None):
-        if self.model == 'EC':
-            chunk_size = 5000
-            documents = get_EC_documents(doc_body or 'short')
-        else:
-            chunk_size = 1
-            documents = get_TC_documents(doc_body or 'anchor')
-        self.reset_index()
+    def _index_EC(self, documents):
         for success, info in parallel_bulk(self.es,
                                            self.data_from_generator(documents),
                                            thread_count=12,
-                                           chunk_size=chunk_size,
+                                           chunk_size=5000,
+                                           max_chunk_bytes=104857600,
                                            queue_size=6):
             if not success:
                 print('A document failed:', info)
+
+    def _index_TC(self, documents):
+        num_docs = len(documents) // 10
+        for i, (did, body) in enumerate(documents.items()):
+            self.es.index(self._index_name, body=body, id=did)
+            if i % num_docs == 0:
+                print('{}% done'.format((i // num_docs) * 10))
+
+    def reindex(self, doc_body='short'):
+        print('Indexing model {} - {}'.format(self.model, self.similarity))
+        self.reset_index()
+        if self.model == 'EC':
+            documents = get_EC_documents(doc_body)
+            self._index_EC(documents)
+        else:
+            documents = get_TC_documents(doc_body)
+            self._index_TC(documents)
 
     def analyze_query(self, query, field='body'):
         """Analyzes a query with respect to the relevant index.
@@ -170,7 +181,7 @@ class ES:
             scores = defaultdict(int)
             for hits in res:
                 for doc in hits['hits']['hits']:
-                    scores[doc['_id']] += doc['_score']
+                    scores['dbo:' + doc['_id']] += doc['_score']
 
             results[query['id']] = sorted(scores.items(),
                                           key=lambda x: x[1],
