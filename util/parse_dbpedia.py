@@ -125,11 +125,11 @@ def get_instance_types(filename='instance_types_en.ttl',
 def get_all_instance_types(transitive=False, force=False):
     fname = 'instance_types_all.json' if transitive else 'instance_types.json'
     if not force:
-        try:
-            return load_dict_from_json(fname)
-        except:
-            print("File doesn\'t exist. Creating new...")
+        instance_types = load_dict_from_json(fname)
+        if instance_types:
+            return instance_types
 
+    print("Creating new instance types mapping...")
     instance_type_filenames = [
         'instance_types_en.ttl', 'instance_types_sdtyped_dbo_en.ttl'
     ]
