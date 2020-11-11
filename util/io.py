@@ -18,5 +18,5 @@ def load_dict_from_json(filename):
             doc = json.load(f)
         return doc
     except:
-        print('File not found.')
+        print(f'File \'{filename}\' not found.')
         return None
