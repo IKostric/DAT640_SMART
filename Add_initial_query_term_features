@@ -1,0 +1,57 @@
+'''
+First, get files 'avg_q_t.json', 'Q_T_features' and 'q_id_list.json'
+from Microsoft Teams
+Place the files in the 'data' folder (lowercase D in 'data', or 
+change code below)
+
+See bottom of this file for explanation of one of the features.
+'''
+
+#Insert the below code into a cell before the extract_features cell:
+
+with open(os.path.join('data','Q_T_features'),'rb') as f:
+    qt_features = pickle.load(f)
+with open(os.path.join('data','q_id_list.json'), 'r') as f:
+    q_ids = json.load(f)
+with open(os.path.join('data','avg_q_t.json'), 'r') as f:
+    q_t_avg = json.load(f)
+
+#insert the below code in a cell before the extract features cell:
+
+def get_Q_T_features(qid,t,lft=qt_features,lqs=q_ids,s='train'):
+	'''
+	Function for extracting SIMAGGR and JTERMS features for
+	query-type pairs.
+	Will use average values if type not in the aggregated
+	type docuemnt.
+	'''
+    q_idx = q_ids[s][qid]
+    t_label = t[4:]
+    if t_label in lft:
+        return([1,lft[t_label][s]['JTERMS'][q_idx],\
+                lft[t_label][s]['SIMAGGR'][0][q_idx][0][1]])
+    else:
+        return [0,q_t_avg['JTERMS'],(q_t_avg['SIMAGGR']+1)/2]
+
+#insert this line into the extract_features function, 
+#after the baseline feature has been added / the features list
+#has been initialized:
+
+features.extend(get_Q_T_features(qid,t,s=dataset))
+
+
+
+#NB!
+'''
+You might notice a 1 and a 0 placed first in the returned lists
+in the get_Q_T_features() function. This feature helpe the score
+when I ran the model. It essentially is 1 for features that are
+calculated on types present in the document_TC_short file and 
+0 for the types where the average values are used.
+I hoped, and it seems to be the case, that the machine learning
+algorithm would 'pick up' on this relationship on some level.
+
+If you want, you can remove the first number, the 1 and the 0 from
+the returned lists. The code should work, but make sure to remove
+from both.
+'''
