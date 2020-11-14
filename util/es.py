@@ -22,8 +22,8 @@ class ES:
         self._settings = self.get_model_settings()
         self._index_name = f'{model}_{similarity}'.lower()
 
-        if similarity == 'LM':
-            self._settings['settings'] = self.get_LM_settings()
+        self._settings['settings'] = getattr(
+            self, f'get_{similarity.lower()}_settings')()
 
         self.es = Elasticsearch(timeout=120)
         #print(self.es.info())
@@ -31,23 +31,73 @@ class ES:
     def get_index(self):
         return self._index_name
 
-    def get_LM_settings(self):
-        return {"index": {"similarity": {"default": {"type": "LMDirichlet"}}}}
+    # def search(self, q, source=False, size=100, explain=False):
+    #     query = {
+    #         "query": {
+    #             "function_score": {
+    #                 "script_score": {
+    #                     "script": {
+    #                         "lang":
+    #                             "painless",
+    #                         "source":
+    #                             """
+    #                             return ;
+    #                         """
+    #                     }
+    #                 }
+    #             }
+    #         }
+    #     }
+    #     return self.es.search(index=self._index_name,
+    #                           body=query,
+    #                           _source=source,
+    #                           explain=explain,
+    #                           size=size)
+
+    def get_lm_settings(self):
+        return {"similarity": {"default": {"type": "LMDirichlet"}}}
+
+    def get_bm25_settings(self):
+        return {"similarity": {"default": {"type": "BM25"}}}
+
+    def get_custom_settings(self):
+        return {
+            "similarity": {
+                "default": {
+                    "type": "LMDirichlet"
+                },
+                "custom_LMDirichlet": {
+                    "type": "scripted",
+                    "script": {
+                        "source":
+                            """
+                            double freq = doc.freq;
+                            double PtC = (term.totalTermFreq+1.0)/(field.sumTotalTermFreq+1.0);
+                            double tw = Math.log(1.0 + (freq/(2000.0*PtC)));
+                            double norm = Math.log(2000.0 / (doc.length + 2000.0));
+                            return Math.max((tw + norm), 0.0);
+                            """
+                    }
+                }
+            }
+        }
 
     def get_model_settings(self):
         properties = {
             'body': {
                 'type': 'text',
                 'term_vector': 'yes',
-                'analyzer': 'english'
+                'analyzer': 'english',
+                'similarity':
+                    'default'  #'custom_lm' if self.similarity == 'Custom' else 'default'
             }
         }
-        # if self.model == 'EC':
-        #     properties['type'] = {
-        #         'type': 'text',
-        #         'term_vector': 'yes',
-        #         'analyzer': 'english'
-        #     },
+        if self.similarity == 'Custom':
+            properties['weight'] = {
+                'type': 'float',
+                'index': False,
+                "store": True
+            }
 
         return {'mappings': {'properties': properties}}
 
@@ -81,15 +131,20 @@ class ES:
             if i % num_docs == 0:
                 print('{}% done'.format((i // num_docs) * 10))
 
-    def reindex(self, doc_body='short'):
+    def reindex(self, doc_body='short', ancestors=False):
         print('Indexing model {} - {}'.format(self.model, self.similarity))
         self.reset_index()
         if self.model == 'EC':
             documents = get_EC_documents(doc_body)
             self._index_EC(documents)
         else:
-            documents = get_TC_documents(doc_body)
+            documents = get_TC_documents(doc_body, ancestors)
+            if self.similarity == 'Custom':
+                weights = get_type_weights()
+                for t in documents:
+                    documents[t]['weight'] = weights.get(t, 1)
             self._index_TC(documents)
+            # self._index_TC({k: v for k, v in list(documents.items())[:20]})
 
     def analyze_query(self, query, field='body'):
         """Analyzes a query with respect to the relevant index.
@@ -181,7 +236,7 @@ class ES:
             scores = defaultdict(int)
             for hits in res:
                 for doc in hits['hits']['hits']:
-                    scores['dbo:' + doc['_id']] += doc['_score']
+                    scores[doc['_id']] += doc['_score']
 
             results[query['id']] = sorted(scores.items(),
                                           key=lambda x: x[1],
@@ -214,7 +269,7 @@ class ES:
             scores = defaultdict(int)
             for entity, score in res[:k]:
                 for t in entity_types[entity]:
-                    scores['dbo:' + t] += score / type_weights[t]
+                    scores[t] += score / type_weights[t]
 
             system_output[qid] = sorted(scores.items(),
                                         key=lambda x: x[1],
@@ -231,6 +286,9 @@ class ES:
 
 
 if __name__ == "__main__":
-    config = ES('EC', 'BM25')
-
+    pass
+    # ES('EC', 'BM25').reindex(None)
+    # ES('EC', 'LM').reindex(None)
+    # ES('TC', 'BM25').reindex(None, True)
+    # ES('TC', 'LM').reindex(None, True)
 # %%

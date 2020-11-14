@@ -131,6 +131,7 @@ dmypy.json
 # data folder
 data/dbpedia/
 data/document_*
+data/backup
 
 # 
 smart_dataset/
