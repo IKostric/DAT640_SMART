@@ -1,0 +1,45 @@
+
+Results for
+Baseline EC k=20 BM25
+=====================
+Category prediction
+   Accuracy:  1.0
+Type ranking
+   NDCG@5:    0.21123008289221018
+   NDCG@10:   0.24173378607982074
+
+Results for
+Baseline EC k=20 LM
+=====================
+Category prediction
+   Accuracy:  1.0
+Type ranking
+   NDCG@5:    0.20839970226113266
+   NDCG@10:   0.22514043545325826
+
+Results for
+Baseline TC BM25
+=====================
+Category prediction
+   Accuracy:  1.0
+Type ranking
+   NDCG@5:    0.18086186093351223
+   NDCG@10:   0.20859685655660057
+
+Results for
+Baseline TC LM
+=====================
+Category prediction
+   Accuracy:  1.0
+Type ranking
+   NDCG@5:    0.22684999798796895
+   NDCG@10:   0.23460817118244456
+
+Results for
+Advanced Model
+=====================
+Category prediction
+   Accuracy:  1.0
+Type ranking
+   NDCG@5:    0.464580774413869
+   NDCG@10:   0.4592628975576962
