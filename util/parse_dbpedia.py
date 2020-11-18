@@ -1,10 +1,6 @@
-#%%
 import os, json, string
 from collections import defaultdict
 from nltk.corpus import stopwords
-
-if os.getcwd().endswith('util'):
-    os.chdir('../')
 
 from util.io import get_data_path, load_dict_from_json, save_dict_to_json
 
@@ -300,6 +296,3 @@ def get_type_weights(force=False):
 
     save_dict_to_json(weight_doc, fname)
     return weight_doc
-
-
-# %%

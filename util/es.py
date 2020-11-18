@@ -4,15 +4,10 @@ from collections import defaultdict
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 
-if os.getcwd().endswith('util'):
-    os.chdir('../')
-
-# fix this
 from util.parse_dbpedia import get_TC_documents, get_EC_documents, get_type_weights, get_all_instance_types
 from util.io import load_dict_from_json, save_dict_to_json
 
 
-#%%
 class ES:
 
     def __init__(self, model='EC', similarity='BM25'):
@@ -30,29 +25,6 @@ class ES:
 
     def get_index(self):
         return self._index_name
-
-    # def search(self, q, source=False, size=100, explain=False):
-    #     query = {
-    #         "query": {
-    #             "function_score": {
-    #                 "script_score": {
-    #                     "script": {
-    #                         "lang":
-    #                             "painless",
-    #                         "source":
-    #                             """
-    #                             return ;
-    #                         """
-    #                     }
-    #                 }
-    #             }
-    #         }
-    #     }
-    #     return self.es.search(index=self._index_name,
-    #                           body=query,
-    #                           _source=source,
-    #                           explain=explain,
-    #                           size=size)
 
     def get_lm_settings(self):
         return {"similarity": {"default": {"type": "LMDirichlet"}}}
@@ -262,6 +234,15 @@ class ES:
         return res
 
     def get_baseline_EC_scores(self, results, k=100):
+        """Aggregates scores from EC index and return ranked types
+
+        Args:
+            results (dict): baseline entity retrieval
+            k (int, optional): Number of documents to aggregate over. Defaults to 100.
+
+        Returns:
+            dict: Type scores
+        """
         type_weights = get_type_weights()
         entity_types = get_all_instance_types(True)
         system_output = {}
@@ -288,7 +269,4 @@ class ES:
 if __name__ == "__main__":
     pass
     # ES('EC', 'BM25').reindex(None)
-    # ES('EC', 'LM').reindex(None)
     # ES('TC', 'BM25').reindex(None, True)
-    # ES('TC', 'LM').reindex(None, True)
-# %%
